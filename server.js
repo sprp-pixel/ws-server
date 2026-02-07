@@ -2,7 +2,7 @@ const http = require('http')
 const { WebSocketServer } = require('ws')
 
 const PORT = Number(process.env.PORT) || 8080
-const TABLE_TTL_MS = 24 * 60 * 60 * 1000
+const TABLE_TTL_MS = 60 * 60 * 1000
 
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' })
