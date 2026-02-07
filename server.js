@@ -100,6 +100,18 @@ wss.on('connection', (ws) => {
       const clientId = typeof message.clientId === 'string' ? message.clientId : null
       const table = touchTable(tableId)
       if (!table) return
+      if (table.leaderId && table.leaderId !== clientId) {
+        let leaderAlive = false
+        for (const info of clients.values()) {
+          if (info.tableId === tableId && info.clientId === table.leaderId) {
+            leaderAlive = true
+            break
+          }
+        }
+        if (!leaderAlive) {
+          table.leaderId = null
+        }
+      }
       if (!table.leaderId || table.leaderId === clientId) {
         table.leaderId = clientId
         sendToClient(ws, { type: 'leader', ok: true, leaderId: clientId })
