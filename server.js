@@ -34,7 +34,7 @@ const getTable = (tableId) => {
   if (!tableId) return null
   const existing = tables.get(tableId)
   if (existing) return existing
-  const next = { state: null, leaderId: null, lastUpdated: Date.now() }
+  const next = { state: null, leaderId: null, lastUpdated: Date.now(), rev: 0 }
   tables.set(tableId, next)
   return next
 }
@@ -117,6 +117,9 @@ wss.on('connection', (ws) => {
       const table = getTable(tableId)
       if (!table || !payload) return
       if (table.leaderId && sender !== table.leaderId) return
+      const incomingRev = payload?.table?.rev ?? 0
+      if (incomingRev <= table.rev) return
+      table.rev = incomingRev
       table.state = payload
       table.lastUpdated = Date.now()
       broadcastToRoom(tableId, { type: 'state', tableId, payload, sender }, ws)
