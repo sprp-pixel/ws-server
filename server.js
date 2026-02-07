@@ -39,6 +39,24 @@ const getTable = (tableId) => {
   return next
 }
 
+const touchTable = (tableId) => {
+  const table = getTable(tableId)
+  if (!table) return null
+  table.lastUpdated = Date.now()
+  return table
+}
+
+const listTables = () => {
+  const now = Date.now()
+  const items = []
+  for (const [id, table] of tables.entries()) {
+    if (now - table.lastUpdated > TABLE_TTL_MS) continue
+    items.push({ id, lastUpdated: table.lastUpdated, hasState: Boolean(table.state) })
+  }
+  items.sort((a, b) => b.lastUpdated - a.lastUpdated)
+  return items
+}
+
 wss.on('connection', (ws) => {
   clients.set(ws, { tableId: null, clientId: null })
 
@@ -56,16 +74,21 @@ wss.on('connection', (ws) => {
       const clientId = typeof message.clientId === 'string' ? message.clientId : null
       clients.set(ws, { tableId, clientId })
       sendToClient(ws, { type: 'joined', tableId })
-      const table = getTable(tableId)
+      const table = touchTable(tableId)
       if (table?.state) {
         sendToClient(ws, { type: 'state', tableId, payload: table.state, sender: 'server' })
       }
       return
     }
 
+    if (message.type === 'list') {
+      sendToClient(ws, { type: 'list', items: listTables() })
+      return
+    }
+
     if (message.type === 'request_state') {
       const tableId = typeof message.tableId === 'string' ? message.tableId : null
-      const table = getTable(tableId)
+      const table = touchTable(tableId)
       if (table?.state) {
         sendToClient(ws, { type: 'state', tableId, payload: table.state, sender: 'server' })
       }
@@ -75,7 +98,7 @@ wss.on('connection', (ws) => {
     if (message.type === 'claim') {
       const tableId = typeof message.tableId === 'string' ? message.tableId : null
       const clientId = typeof message.clientId === 'string' ? message.clientId : null
-      const table = getTable(tableId)
+      const table = touchTable(tableId)
       if (!table) return
       if (!table.leaderId || table.leaderId === clientId) {
         table.leaderId = clientId
